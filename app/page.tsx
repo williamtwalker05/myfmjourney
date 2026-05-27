@@ -1,6 +1,39 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 export default function Home() {
+  const router = useRouter();
+
+  async function getLatestSave() {
+    const { data, error } = await supabase
+      .from("saves")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.log(error);
+      return null;
+    }
+
+    return data;
+  }
+
+  async function continueJourney() {
+    const latest = await getLatestSave();
+
+    if (!latest) {
+      alert("No journeys found");
+      return;
+    }
+
+    router.push(`/save/${latest.id}`);
+  }
+
   return (
     <main style={{ padding: 40, fontFamily: "sans-serif" }}>
       <h1>My FM Journey</h1>
@@ -15,15 +48,22 @@ export default function Home() {
             border: "1px solid black",
             borderRadius: 6,
             textDecoration: "none",
-            color: "black",
+            color: "white",
           }}
         >
-          New Save
+          Start New Journey
         </Link>
 
-        <button style={{ padding: "8px 12px" }}>My Journeys</button>
+        <button
+          onClick={continueJourney}
+          style={{ padding: "8px 12px" }}
+        >
+          Continue Journey
+        </button>
 
-        <button style={{ padding: "8px 12px" }}>New Online Save</button>
+        <button style={{ padding: "8px 12px" }}>
+          My Journeys
+        </button>
       </div>
     </main>
   );

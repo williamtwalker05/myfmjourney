@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function SavePage({ params }: any) {
+  const id = params.id;
+
   const [save, setSave] = useState<any>(null);
   const [seasons, setSeasons] = useState<any[]>([]);
 
@@ -12,20 +14,20 @@ export default function SavePage({ params }: any) {
       const { data: saveData } = await supabase
         .from("saves")
         .select("*")
-        .eq("id", params.id)
+        .eq("id", id)
         .single();
 
       const { data: seasonData } = await supabase
         .from("seasons")
         .select("*")
-        .eq("save_id", params.id);
+        .eq("save_id", id);
 
       setSave(saveData);
       setSeasons(seasonData || []);
     }
 
     loadData();
-  }, [params.id]);
+  }, [id]);
 
   return (
     <main style={{ padding: 40, fontFamily: "sans-serif" }}>
@@ -40,7 +42,11 @@ export default function SavePage({ params }: any) {
         seasons.map((s) => (
           <div
             key={s.id}
-            style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}
+            style={{
+              border: "1px solid #ccc",
+              padding: 10,
+              marginBottom: 10,
+            }}
           >
             <p>{s.season_year}</p>
             <p>{s.league_position}</p>
