@@ -35,35 +35,69 @@ export default function Home() {
   }
 
   return (
-    <main style={{ padding: 40, fontFamily: "sans-serif" }}>
-      <h1>My FM Journey</h1>
+    <main
+      style={{
+        padding: 40,
+        fontFamily: "sans-serif",
+        backgroundColor: "black",
+        minHeight: "100vh",
+        color: "white",
+      }}
+    >
+      <h1 style={{ fontSize: 32, marginBottom: 10 }}>
+        My FM Journey
+      </h1>
 
-      <p>Track your Football Manager careers</p>
+      <p style={{ color: "#aaa" }}>
+        Track your Football Manager careers
+      </p>
 
-      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+      <div style={{ marginTop: 30, display: "flex", gap: 10 }}>
+        {/* NEW JOURNEY */}
         <Link
           href="/new-save"
           style={{
-            padding: "8px 12px",
-            border: "1px solid black",
+            padding: "10px 14px",
+            border: "1px solid white",
             borderRadius: 6,
             textDecoration: "none",
-            color: "white",
+            color: "black",
+            backgroundColor: "white",
+            fontWeight: 600,
           }}
         >
           Start New Journey
         </Link>
 
+        {/* CONTINUE */}
         <button
           onClick={continueJourney}
-          style={{ padding: "8px 12px" }}
+          style={{
+            padding: "10px 14px",
+            border: "1px solid white",
+            borderRadius: 6,
+            backgroundColor: "transparent",
+            color: "white",
+            cursor: "pointer",
+          }}
         >
           Continue Journey
         </button>
 
-        <button style={{ padding: "8px 12px" }}>
+        {/* MY JOURNEYS */}
+        <Link
+          href="/my-journeys"
+          style={{
+            padding: "10px 14px",
+            border: "1px solid white",
+            borderRadius: 6,
+            textDecoration: "none",
+            color: "white",
+            backgroundColor: "transparent",
+          }}
+        >
           My Journeys
-        </button>
+        </Link>
       </div>
     </main>
   );
