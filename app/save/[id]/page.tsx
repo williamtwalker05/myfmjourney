@@ -2,9 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
-export default function SavePage({ params }: any) {
-  const id = params.id;
+type Props = {
+  params: { id: string };
+};
+
+export default function SavePage({ params }: Props) {
+  const { id } = params;
+  const router = useRouter();
 
   const [save, setSave] = useState<any>(null);
   const [seasons, setSeasons] = useState<any[]>([]);
@@ -31,6 +37,20 @@ export default function SavePage({ params }: any) {
 
   return (
     <main style={{ padding: 40, fontFamily: "sans-serif" }}>
+      <button
+        onClick={() => router.push("/my-journeys")}
+        style={{
+          marginBottom: 20,
+          padding: "8px 14px",
+          cursor: "pointer",
+          border: "1px solid #ccc",
+          borderRadius: 6,
+          backgroundColor: "transparent",
+        }}
+      >
+        ← Back to My Journeys
+      </button>
+
       <h1>{save?.name}</h1>
       <p>{save?.club}</p>
 
