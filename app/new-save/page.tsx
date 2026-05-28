@@ -41,8 +41,6 @@ export default function NewSave() {
       name,
       club,
       current_season: currentSeason,
-      created_at: new Date(),
-      updated_at: new Date(),
     });
 
     setLoading(false);
