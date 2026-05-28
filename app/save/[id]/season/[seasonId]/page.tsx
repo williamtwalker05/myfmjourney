@@ -34,7 +34,7 @@ const europeanStages = [
   "Round of 16", "Quarter Final", "Semi Final", "Final", "Winner",
 ];
 
-function getAvailableTrophies(country: string, competition: string, cupStageReached: string): string[] {
+function getAvailableTrophies(country: string, competition: string): string[] {
   const trophies: string[] = ["League Title"];
   if (country === "England") { trophies.push("FA Cup", "Carabao Cup"); }
   else if (country === "Spain") { trophies.push("Copa del Rey"); }
@@ -47,18 +47,10 @@ function getAvailableTrophies(country: string, competition: string, cupStageReac
   return trophies;
 }
 
-function getNextSeason(current: string) {
-  const parts = current.split("/");
-  if (parts.length !== 2) return current;
-  const start = parseInt(parts[0]);
-  const next = start + 1;
-  return `${String(next).padStart(2, "0")}/${String(next + 1).padStart(2, "0")}`;
-}
+type Props = { params: Promise<{ id: string; seasonId: string }> };
 
-type Props = { params: Promise<{ id: string }> };
-
-export default function NewSeason({ params }: Props) {
-  const { id } = use(params);
+export default function EditSeason({ params }: Props) {
+  const { id, seasonId } = use(params);
   const router = useRouter();
 
   const [seasonYear, setSeasonYear] = useState("");
@@ -75,30 +67,39 @@ export default function NewSeason({ params }: Props) {
   const [hoveredCountry, setHoveredCountry] = useState("");
   const [showLeaguePicker, setShowLeaguePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     async function loadSeason() {
       const { data } = await supabase
-        .from("saves")
-        .select("current_season")
-        .eq("id", id)
-        .single();
-      if (data?.current_season) setSeasonYear(data.current_season);
+        .from("seasons").select("*").eq("id", seasonId).single();
+      if (data) {
+        setSeasonYear(data.season_year || "");
+        setCountry(data.country || "");
+        setLeague(data.league || "");
+        setPosition(String(data.league_position || ""));
+        setDomesticCup(data.domestic_cup || "");
+        setDomesticCupStage(data.domestic_cup_stage || "");
+        setCompetition(data.european_competition || "");
+        setStage(data.european_stage || "");
+        setTopScorerName(data.top_scorer_name || "");
+        setTopScorerGoals(data.top_scorer_goals ? String(data.top_scorer_goals) : "");
+        setSelectedTrophies(data.trophies ? JSON.parse(data.trophies) : []);
+      }
     }
     loadSeason();
-  }, [id]);
+  }, [seasonId]);
 
   const countries = Object.keys(leagueData);
   const teamCount = country && league ? leagueData[country][league] : 0;
   const positions = teamCount ? Array.from({ length: teamCount }, (_, i) => i + 1) : [];
-  const availableTrophies = getAvailableTrophies(country, competition, domesticCupStage);
+  const availableTrophies = getAvailableTrophies(country, competition);
 
   function handleLeagueSelect(selectedCountry: string, selectedLeague: string) {
     setCountry(selectedCountry);
     setLeague(selectedLeague);
     setPosition("");
-    setDomesticCup("");
-    setDomesticCupStage("");
     setShowLeaguePicker(false);
     setHoveredCountry("");
   }
@@ -109,24 +110,15 @@ export default function NewSeason({ params }: Props) {
     );
   }
 
-  async function createSeason() {
-    if (!seasonYear || !country || !league || !position) {
-      alert("Please fill in league and position");
-      return;
-    }
-    if (!domesticCup || !domesticCupStage) {
-      alert("Please fill in domestic cup details");
-      return;
-    }
-    if (competition && competition !== "None" && !stage) {
-      alert("Please select the European stage reached");
+  async function saveSeason() {
+    if (!seasonYear || !country || !league || !position || !domesticCup || !domesticCupStage) {
+      alert("Please fill in all required fields");
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.from("seasons").insert({
-      save_id: id,
+    const { error } = await supabase.from("seasons").update({
       season_year: seasonYear,
       country,
       league,
@@ -138,20 +130,26 @@ export default function NewSeason({ params }: Props) {
       top_scorer_name: topScorerName || null,
       top_scorer_goals: topScorerGoals ? parseInt(topScorerGoals) : null,
       trophies: selectedTrophies.length > 0 ? JSON.stringify(selectedTrophies) : null,
-    });
+    }).eq("id", seasonId);
+
+    setLoading(false);
 
     if (error) {
-      alert("Error saving season");
-      setLoading(false);
+      alert("Error updating season");
       return;
     }
 
-    await supabase
-      .from("saves")
-      .update({ current_season: getNextSeason(seasonYear) })
-      .eq("id", id);
+    router.push(`/save/${id}`);
+  }
 
-    setLoading(false);
+  async function deleteSeason() {
+    setDeleting(true);
+    const { error } = await supabase.from("seasons").delete().eq("id", seasonId);
+    if (error) {
+      alert("Failed to delete season");
+      setDeleting(false);
+      return;
+    }
     router.push(`/save/${id}`);
   }
 
@@ -162,9 +160,7 @@ export default function NewSeason({ params }: Props) {
           ← Back
         </Link>
 
-        <h1 className="text-3xl font-bold text-white mb-1">Log Season</h1>
-        <p className="text-gray-400 mb-2">Recording your season details.</p>
-
+        <h1 className="text-3xl font-bold text-white mb-1">Edit Season</h1>
         {seasonYear && (
           <div className="inline-block bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-semibold px-3 py-1 rounded-full mb-8">
             Season {seasonYear}
@@ -173,7 +169,17 @@ export default function NewSeason({ params }: Props) {
 
         <div className="flex flex-col gap-4">
 
-          {/* League Flyout Picker */}
+          {/* Season Year */}
+          <div>
+            <label className="text-sm text-gray-400 mb-1 block">Season</label>
+            <input
+              value={seasonYear}
+              onChange={(e) => setSeasonYear(e.target.value)}
+              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
+            />
+          </div>
+
+          {/* League Flyout */}
           <div>
             <label className="text-sm text-gray-400 mb-1 block">League</label>
             <button
@@ -186,7 +192,6 @@ export default function NewSeason({ params }: Props) {
                 <span className="text-gray-600">Select league</span>
               )}
             </button>
-
             {showLeaguePicker && (
               <div className="mt-2 flex rounded-xl border border-white/10 overflow-hidden">
                 <div className="w-1/2 bg-[#141414] border-r border-white/10">
@@ -240,12 +245,10 @@ export default function NewSeason({ params }: Props) {
 
           {/* Domestic Cup */}
           <div>
-            <label className="text-sm text-gray-400 mb-1 block">
-              Domestic Cup <span className="text-red-400">*</span>
-            </label>
+            <label className="text-sm text-gray-400 mb-1 block">Domestic Cup <span className="text-red-400">*</span></label>
             <select
               value={domesticCup}
-              onChange={(e) => { setDomesticCup(e.target.value); setDomesticCupStage(""); }}
+              onChange={(e) => setDomesticCup(e.target.value)}
               disabled={!country}
               className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors disabled:opacity-40"
             >
@@ -256,11 +259,9 @@ export default function NewSeason({ params }: Props) {
             </select>
           </div>
 
-          {/* Domestic Cup Stage */}
+          {/* Cup Stage */}
           <div>
-            <label className="text-sm text-gray-400 mb-1 block">
-              Cup Stage Reached <span className="text-red-400">*</span>
-            </label>
+            <label className="text-sm text-gray-400 mb-1 block">Cup Stage Reached <span className="text-red-400">*</span></label>
             <select
               value={domesticCupStage}
               onChange={(e) => setDomesticCupStage(e.target.value)}
@@ -276,9 +277,7 @@ export default function NewSeason({ params }: Props) {
 
           {/* European Competition */}
           <div>
-            <label className="text-sm text-gray-400 mb-1 block">
-              European Competition <span className="text-gray-600">(optional)</span>
-            </label>
+            <label className="text-sm text-gray-400 mb-1 block">European Competition <span className="text-gray-600">(optional)</span></label>
             <select
               value={competition}
               onChange={(e) => { setCompetition(e.target.value); setStage(""); }}
@@ -291,7 +290,6 @@ export default function NewSeason({ params }: Props) {
             </select>
           </div>
 
-          {/* European Stage */}
           {competition && competition !== "None" && (
             <div>
               <label className="text-sm text-gray-400 mb-1 block">Stage Reached</label>
@@ -310,9 +308,7 @@ export default function NewSeason({ params }: Props) {
 
           {/* Top Scorer */}
           <div className="bg-[#141414] border border-white/10 rounded-xl p-4">
-            <label className="text-sm text-gray-400 mb-3 block">
-              Top Scorer <span className="text-gray-600">(optional)</span>
-            </label>
+            <label className="text-sm text-gray-400 mb-3 block">Top Scorer <span className="text-gray-600">(optional)</span></label>
             <div className="flex gap-3">
               <input
                 placeholder="Player name"
@@ -333,9 +329,7 @@ export default function NewSeason({ params }: Props) {
           {/* Trophies */}
           {country && (
             <div className="bg-[#141414] border border-white/10 rounded-xl p-4">
-              <label className="text-sm text-gray-400 mb-3 block">
-                Trophies Won <span className="text-gray-600">(optional)</span>
-              </label>
+              <label className="text-sm text-gray-400 mb-3 block">Trophies Won <span className="text-gray-600">(optional)</span></label>
               <div className="flex flex-wrap gap-2">
                 {availableTrophies.map((trophy) => (
                   <button
@@ -355,12 +349,44 @@ export default function NewSeason({ params }: Props) {
           )}
 
           <button
-            onClick={createSeason}
+            onClick={saveSeason}
             disabled={loading}
             className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold py-3 rounded-xl transition-colors mt-2"
           >
-            {loading ? "Saving..." : "Save Season"}
+            {loading ? "Saving..." : "Save Changes"}
           </button>
+
+          {/* Delete season */}
+          <div className="border-t border-white/10 pt-4">
+            {!showConfirm ? (
+              <button
+                onClick={() => setShowConfirm(true)}
+                className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-semibold py-3 rounded-xl transition-colors"
+              >
+                Delete Season
+              </button>
+            ) : (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5">
+                <p className="text-red-400 font-semibold mb-1">Delete this season?</p>
+                <p className="text-gray-400 text-sm mb-4">This cannot be undone.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={deleteSeason}
+                    disabled={deleting}
+                    className="flex-1 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-bold py-2 rounded-xl transition-colors"
+                  >
+                    {deleting ? "Deleting..." : "Yes, delete"}
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-2 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </main>

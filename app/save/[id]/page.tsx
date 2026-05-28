@@ -17,34 +17,21 @@ export default function SavePage({ params }: Props) {
 
   async function deleteSave() {
     setDeleting(true);
-
-    const { error } = await supabase
-      .from("saves")
-      .delete()
-      .eq("id", id);
-
+    const { error } = await supabase.from("saves").delete().eq("id", id);
     if (error) {
       alert("Failed to delete journey");
       setDeleting(false);
       return;
     }
-
     router.push("/my-journeys");
   }
 
   useEffect(() => {
     async function loadData() {
       const { data: saveData } = await supabase
-        .from("saves")
-        .select("*")
-        .eq("id", id)
-        .single();
-
+        .from("saves").select("*").eq("id", id).single();
       const { data: seasonData } = await supabase
-        .from("seasons")
-        .select("*")
-        .eq("save_id", id);
-
+        .from("seasons").select("*").eq("save_id", id).order("season_year", { ascending: true });
       setSave(saveData);
       setSeasons(seasonData || []);
     }
@@ -53,7 +40,7 @@ export default function SavePage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] px-6 py-10">
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <button
           onClick={() => router.push("/my-journeys")}
           className="text-gray-500 hover:text-white text-sm mb-6 block transition-colors"
@@ -62,11 +49,22 @@ export default function SavePage({ params }: Props) {
         </button>
 
         {/* Save header */}
-        <div className="bg-[#141414] border border-white/10 rounded-2xl px-6 py-5 mb-8">
-          <p className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-1">
-            {save?.club}
-          </p>
-          <h1 className="text-3xl font-bold text-white">{save?.name}</h1>
+        <div className="bg-[#141414] border border-white/10 rounded-2xl px-6 py-5 mb-8 flex items-center justify-between">
+          <div>
+            <p className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-1">
+              {save?.club}
+            </p>
+            <h1 className="text-3xl font-bold text-white">{save?.name}</h1>
+            {save?.current_season && (
+              <p className="text-gray-500 text-sm mt-1">Current season: {save.current_season}</p>
+            )}
+          </div>
+          <button
+            onClick={() => router.push(`/save/${id}/summary`)}
+            className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors"
+          >
+            📊 Summary
+          </button>
         </div>
 
         {/* Seasons */}
@@ -86,19 +84,68 @@ export default function SavePage({ params }: Props) {
             <p className="font-medium">No seasons logged yet</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {seasons.map((s) => (
-              <div
-                key={s.id}
-                className="bg-[#141414] border border-white/10 rounded-xl px-5 py-4"
-              >
-                <p className="text-white font-semibold">{s.season_year}</p>
-                <p className="text-green-400 text-sm mt-0.5">{s.league} — {s.country}</p>
-                <p className="text-gray-400 text-sm mt-0.5">
-                  Position: {s.league_position}
-                </p>
-              </div>
-            ))}
+          <div className="bg-[#141414] border border-white/10 rounded-2xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-gray-500 text-xs uppercase tracking-wider">
+                  <th className="text-left px-4 py-3">Season</th>
+                  <th className="text-left px-4 py-3">League</th>
+                  <th className="text-left px-4 py-3">Pos</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">Cup</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">Europe</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">Top Scorer</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {seasons.map((s, i) => (
+                  <tr
+                    key={s.id}
+                    className={`border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
+                  >
+                    <td className="px-4 py-3 text-white font-semibold">{s.season_year}</td>
+                    <td className="px-4 py-3 text-gray-300">
+                      <span>{s.league}</span>
+                      <span className="text-gray-600 text-xs ml-1">({s.country})</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`font-bold ${s.league_position === 1 ? "text-yellow-400" : "text-gray-300"}`}>
+                        {s.league_position}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
+                      {s.domestic_cup_stage === "Winner" ? (
+                        <span className="text-yellow-400">🏆 {s.domestic_cup}</span>
+                      ) : (
+                        <span>{s.domestic_cup_stage}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
+                      {s.european_competition ? (
+                        <span>{s.european_competition} — {s.european_stage}</span>
+                      ) : (
+                        <span className="text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
+                      {s.top_scorer_name ? (
+                        <span>{s.top_scorer_name} ({s.top_scorer_goals})</span>
+                      ) : (
+                        <span className="text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => router.push(`/save/${id}/season/${s.id}`)}
+                        className="text-gray-500 hover:text-white text-xs border border-white/10 hover:border-white/30 px-2 py-1 rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -135,7 +182,6 @@ export default function SavePage({ params }: Props) {
             </div>
           )}
         </div>
-
       </div>
     </main>
   );
