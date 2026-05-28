@@ -134,7 +134,7 @@ export default function Summary({ params }: Props) {
             {graphSeasons.length > 0 && (
               <div className="bg-[#141414] border border-white/10 rounded-2xl p-5">
                 <h2 className="text-white font-bold mb-4">League Position History</h2>
-                <p className="text-gray-600 text-xs mb-3">Last {graphSeasons.length} seasons — lower number is better</p>
+                <p className="text-gray-600 text-xs mb-3">Last {graphSeasons.length} seasons</p>
                 <svg
                   viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                   className="w-full"
