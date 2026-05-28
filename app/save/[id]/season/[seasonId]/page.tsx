@@ -34,14 +34,22 @@ const europeanStages = [
   "Round of 16", "Quarter Final", "Semi Final", "Final", "Winner",
 ];
 
+// Add more formations here as needed
+const formations = [
+  "4-2-3-1", "4-3-3", "4-4-2", "4-1-4-1", "4-5-1", "4-3-2-1",
+  "3-4-3", "3-5-2", "3-4-2-1", "5-3-2", "5-4-1", "5-2-3",
+  "4-4-1-1", "4-2-2-2", "4-1-2-1-2", "4-3-1-2",
+];
+
 function calculateTrophies(
+  league: string,
   leaguePosition: number,
   cupResults: Record<string, string>,
   europeanCompetition: string,
   europeanStage: string
 ): string[] {
   const trophies: string[] = [];
-  if (leaguePosition === 1) trophies.push("League Title");
+  if (leaguePosition === 1) trophies.push(`${league} Title`);
   Object.entries(cupResults).forEach(([cup, stage]) => {
     if (stage === "Winner") trophies.push(cup);
   });
@@ -66,6 +74,9 @@ export default function EditSeason({ params }: Props) {
   const [stage, setStage] = useState("");
   const [topScorerName, setTopScorerName] = useState("");
   const [topScorerGoals, setTopScorerGoals] = useState("");
+  const [topAssisterName, setTopAssisterName] = useState("");
+  const [topAssisterAssists, setTopAssisterAssists] = useState("");
+  const [tactic, setTactic] = useState("");
   const [hoveredCountry, setHoveredCountry] = useState("");
   const [showLeaguePicker, setShowLeaguePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -86,6 +97,9 @@ export default function EditSeason({ params }: Props) {
         setStage(data.european_stage || "");
         setTopScorerName(data.top_scorer_name || "");
         setTopScorerGoals(data.top_scorer_goals ? String(data.top_scorer_goals) : "");
+        setTopAssisterName(data.top_assister_name || "");
+        setTopAssisterAssists(data.top_assister_assists ? String(data.top_assister_assists) : "");
+        setTactic(data.tactic || "");
       }
     }
     loadSeason();
@@ -109,7 +123,7 @@ export default function EditSeason({ params }: Props) {
   }
 
   const autoTrophies = position
-    ? calculateTrophies(parseInt(position), cupResults, competition, stage)
+    ? calculateTrophies(league, parseInt(position), cupResults, competition, stage)
     : [];
 
   async function saveSeason() {
@@ -135,6 +149,9 @@ export default function EditSeason({ params }: Props) {
       european_stage: competition === "None" ? null : stage || null,
       top_scorer_name: topScorerName || null,
       top_scorer_goals: topScorerGoals ? parseInt(topScorerGoals) : null,
+      top_assister_name: topAssisterName || null,
+      top_assister_assists: topAssisterAssists ? parseInt(topAssisterAssists) : null,
+      tactic: tactic || null,
       trophies: autoTrophies.length > 0 ? JSON.stringify(autoTrophies) : null,
     }).eq("id", seasonId);
 
@@ -249,6 +266,23 @@ export default function EditSeason({ params }: Props) {
             </select>
           </div>
 
+          {/* Tactic */}
+          <div>
+            <label className="text-sm text-gray-400 mb-1 block">
+              Tactic <span className="text-gray-600">(optional)</span>
+            </label>
+            <select
+              value={tactic}
+              onChange={(e) => setTactic(e.target.value)}
+              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
+            >
+              <option value="">Select formation</option>
+              {formations.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Domestic Cups */}
           {cups.length > 0 && (
             <div className="bg-[#141414] border border-white/10 rounded-xl p-4 flex flex-col gap-3">
@@ -306,25 +340,47 @@ export default function EditSeason({ params }: Props) {
             </div>
           )}
 
-          {/* Top Scorer */}
-          <div className="bg-[#141414] border border-white/10 rounded-xl p-4">
-            <label className="text-sm text-gray-400 mb-3 block">
-              Top Scorer <span className="text-gray-600">(optional)</span>
-            </label>
-            <div className="flex gap-3">
-              <input
-                placeholder="Player name"
-                value={topScorerName}
-                onChange={(e) => setTopScorerName(e.target.value)}
-                className="flex-1 bg-[#0a0a0a] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2 outline-none focus:border-green-500 transition-colors"
-              />
-              <input
-                placeholder="Goals"
-                type="number"
-                value={topScorerGoals}
-                onChange={(e) => setTopScorerGoals(e.target.value)}
-                className="w-24 bg-[#0a0a0a] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2 outline-none focus:border-green-500 transition-colors"
-              />
+          {/* Top Scorer & Assister */}
+          <div className="bg-[#141414] border border-white/10 rounded-xl p-4 flex flex-col gap-4">
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">
+                Top Scorer <span className="text-gray-600">(optional)</span>
+              </label>
+              <div className="flex gap-3">
+                <input
+                  placeholder="Player name"
+                  value={topScorerName}
+                  onChange={(e) => setTopScorerName(e.target.value)}
+                  className="flex-1 bg-[#0a0a0a] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2 outline-none focus:border-green-500 transition-colors"
+                />
+                <input
+                  placeholder="Goals"
+                  type="number"
+                  value={topScorerGoals}
+                  onChange={(e) => setTopScorerGoals(e.target.value)}
+                  className="w-24 bg-[#0a0a0a] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2 outline-none focus:border-green-500 transition-colors"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">
+                Top Assister <span className="text-gray-600">(optional)</span>
+              </label>
+              <div className="flex gap-3">
+                <input
+                  placeholder="Player name"
+                  value={topAssisterName}
+                  onChange={(e) => setTopAssisterName(e.target.value)}
+                  className="flex-1 bg-[#0a0a0a] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2 outline-none focus:border-green-500 transition-colors"
+                />
+                <input
+                  placeholder="Assists"
+                  type="number"
+                  value={topAssisterAssists}
+                  onChange={(e) => setTopAssisterAssists(e.target.value)}
+                  className="w-24 bg-[#0a0a0a] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2 outline-none focus:border-green-500 transition-colors"
+                />
+              </div>
             </div>
           </div>
 
