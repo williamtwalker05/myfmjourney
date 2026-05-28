@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { use } from "react";
@@ -57,6 +57,14 @@ const stages = [
   "Winner",
 ];
 
+function getNextSeason(current: string) {
+  const parts = current.split("/");
+  if (parts.length !== 2) return current;
+  const start = parseInt(parts[0]);
+  const next = start + 1;
+  return `${String(next).padStart(2, "0")}/${String(next + 1).padStart(2, "0")}`;
+}
+
 type Props = { params: Promise<{ id: string }> };
 
 export default function NewSeason({ params }: Props) {
@@ -72,6 +80,21 @@ export default function NewSeason({ params }: Props) {
   const [hoveredCountry, setHoveredCountry] = useState("");
   const [showLeaguePicker, setShowLeaguePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadSeason() {
+      const { data } = await supabase
+        .from("saves")
+        .select("current_season")
+        .eq("id", id)
+        .single();
+
+      if (data?.current_season) {
+        setSeasonYear(data.current_season);
+      }
+    }
+    loadSeason();
+  }, [id]);
 
   const countries = Object.keys(leagueData);
   const teamCount = country && league ? leagueData[country][league] : 0;
@@ -115,13 +138,19 @@ export default function NewSeason({ params }: Props) {
       european_stage: competition === "None" ? null : stage || null,
     });
 
-    setLoading(false);
-
     if (error) {
       alert("Error saving season");
+      setLoading(false);
       return;
     }
 
+    // bump current_season forward on the save
+    await supabase
+      .from("saves")
+      .update({ current_season: getNextSeason(seasonYear) })
+      .eq("id", id);
+
+    setLoading(false);
     router.push(`/save/${id}`);
   }
 
@@ -136,26 +165,20 @@ export default function NewSeason({ params }: Props) {
         </Link>
 
         <h1 className="text-3xl font-bold text-white mb-1">Log Season</h1>
-        <p className="text-gray-400 mb-8">Record your season finish.</p>
+        <p className="text-gray-400 mb-2">Recording season for your journey.</p>
+
+        {/* Season badge */}
+        {seasonYear && (
+          <div className="inline-block bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-semibold px-3 py-1 rounded-full mb-8">
+            Season {seasonYear}
+          </div>
+        )}
 
         <div className="flex flex-col gap-4">
-
-          {/* Season Year */}
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Season</label>
-            <input
-              placeholder="e.g. 2024/25"
-              value={seasonYear}
-              onChange={(e) => setSeasonYear(e.target.value)}
-              className="w-full bg-[#141414] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
-            />
-          </div>
 
           {/* League Flyout Picker */}
           <div>
             <label className="text-sm text-gray-400 mb-1 block">League</label>
-
-            {/* Selected value display */}
             <button
               onClick={() => setShowLeaguePicker(!showLeaguePicker)}
               className="w-full bg-[#141414] border border-white/10 text-left text-white rounded-xl px-4 py-3 transition-colors hover:border-green-500"
@@ -167,10 +190,8 @@ export default function NewSeason({ params }: Props) {
               )}
             </button>
 
-            {/* Flyout panel */}
             {showLeaguePicker && (
               <div className="mt-2 flex rounded-xl border border-white/10 overflow-hidden">
-                {/* Countries */}
                 <div className="w-1/2 bg-[#141414] border-r border-white/10">
                   {countries.map((c) => (
                     <button
@@ -189,7 +210,6 @@ export default function NewSeason({ params }: Props) {
                   ))}
                 </div>
 
-                {/* Leagues for hovered country */}
                 <div className="w-1/2 bg-[#1a1a1a]">
                   {hoveredCountry ? (
                     Object.keys(leagueData[hoveredCountry]).map((l) => (
