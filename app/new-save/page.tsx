@@ -5,15 +5,33 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+function getCurrentSeason() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  const startYear = month >= 8 ? year : year - 1;
+  return `${String(startYear).slice(2)}/${String(startYear + 1).slice(2)}`;
+}
+
+function getSeasonOptions() {
+  const seasons = [];
+  for (let start = 26; start >= 16; start--) {
+    seasons.push(`${String(start).padStart(2, "0")}/${String(start + 1).padStart(2, "0")}`);
+  }
+  return seasons;
+}
+
 export default function NewSave() {
   const [name, setName] = useState("");
   const [club, setClub] = useState("");
+  const [currentSeason, setCurrentSeason] = useState(getCurrentSeason());
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function createSave() {
-    if (!name || !club) {
-      alert("Please fill in both fields");
+    if (!name || !club || !currentSeason) {
+      alert("Please fill in all fields");
       return;
     }
 
@@ -22,6 +40,7 @@ export default function NewSave() {
     const { error } = await supabase.from("saves").insert({
       name,
       club,
+      current_season: currentSeason,
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -65,6 +84,20 @@ export default function NewSave() {
               onChange={(e) => setClub(e.target.value)}
               className="w-full bg-[#141414] border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
             />
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-400 mb-1 block">Starting Season</label>
+            <select
+              value={currentSeason}
+              onChange={(e) => setCurrentSeason(e.target.value)}
+              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
+            >
+              {getSeasonOptions().map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <p className="text-gray-600 text-xs mt-1">Auto-selected based on today's date</p>
           </div>
 
           <button
