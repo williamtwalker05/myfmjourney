@@ -12,13 +12,11 @@ export default function SavePage({ params }: Props) {
   const router = useRouter();
   const [save, setSave] = useState<any>(null);
   const [seasons, setSeasons] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function deleteSave() {
-    const confirmed = window.confirm(
-      "Are you sure? This will permanently delete this journey and cannot be undone."
-    );
-
-    if (!confirmed) return;
+    setDeleting(true);
 
     const { error } = await supabase
       .from("saves")
@@ -27,6 +25,7 @@ export default function SavePage({ params }: Props) {
 
     if (error) {
       alert("Failed to delete journey");
+      setDeleting(false);
       return;
     }
 
@@ -98,12 +97,36 @@ export default function SavePage({ params }: Props) {
 
         {/* Danger zone */}
         <div className="mt-10 border-t border-white/10 pt-6">
-          <button
-            onClick={deleteSave}
-            className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-semibold py-3 rounded-xl transition-colors"
-          >
-            Delete Journey
-          </button>
+          {!showConfirm ? (
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-semibold py-3 rounded-xl transition-colors"
+            >
+              Delete Journey
+            </button>
+          ) : (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5">
+              <p className="text-red-400 font-semibold mb-1">Are you sure?</p>
+              <p className="text-gray-400 text-sm mb-4">
+                This will permanently delete this journey and cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={deleteSave}
+                  disabled={deleting}
+                  className="flex-1 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-bold py-2 rounded-xl transition-colors"
+                >
+                  {deleting ? "Deleting..." : "Yes, delete"}
+                </button>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-2 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
