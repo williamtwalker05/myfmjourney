@@ -72,6 +72,12 @@ export default function SavePage({ params }: Props) {
         {/* Seasons */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white">Seasons</h2>
+          <button
+            onClick={() => router.push(`/save/${id}/new-season`)}
+            className="bg-green-500 hover:bg-green-400 text-black font-bold py-2 px-4 rounded-xl text-sm transition-colors"
+          >
+            + Add Season
+          </button>
         </div>
 
         {seasons.length === 0 ? (
@@ -87,6 +93,7 @@ export default function SavePage({ params }: Props) {
                 className="bg-[#141414] border border-white/10 rounded-xl px-5 py-4"
               >
                 <p className="text-white font-semibold">{s.season_year}</p>
+                <p className="text-green-400 text-sm mt-0.5">{s.league} — {s.country}</p>
                 <p className="text-gray-400 text-sm mt-0.5">
                   Position: {s.league_position}
                 </p>
