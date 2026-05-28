@@ -31,10 +31,10 @@ export default function Home() {
         </div>
 
         <h1 className="text-5xl font-extrabold text-white leading-tight mb-3">
-          My FM <span className="text-green-400">Journey</span>
+          MyFM<span className="text-green-400">Journey</span>
         </h1>
         <p className="text-gray-400 text-lg mb-10">
-          Log your seasons, track your progress, relive your career.
+          Track your seasons, bring your save to life..
         </p>
 
         <div className="flex flex-col gap-3">
@@ -63,7 +63,7 @@ export default function Home() {
             href="/demo"
             className="w-full text-center bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200"
           >
-            👀 View Example Journey
+            📌View Example Journey
           </Link>
         </div>
       </div>
