@@ -11,7 +11,7 @@ export default function Home() {
     const { data, error } = await supabase
       .from("saves")
       .select("*")
-      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .single();
 

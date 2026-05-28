@@ -15,7 +15,7 @@ export default function MyJourneys() {
       const { data, error } = await supabase
         .from("saves")
         .select("*")
-        .order("updated_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (!error) setSaves(data || []);
       setLoading(false);
