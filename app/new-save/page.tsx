@@ -16,7 +16,7 @@ function getCurrentSeason() {
 
 function getSeasonOptions() {
   const seasons = [];
-  for (let start = 26; start >= 16; start--) {
+  for (let start = 30; start >= 16; start--) {
     seasons.push(`${String(start).padStart(2, "0")}/${String(start + 1).padStart(2, "0")}`);
   }
   return seasons;
