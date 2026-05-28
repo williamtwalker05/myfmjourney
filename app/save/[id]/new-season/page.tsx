@@ -34,16 +34,20 @@ const europeanStages = [
   "Round of 16", "Quarter Final", "Semi Final", "Final", "Winner",
 ];
 
-function getAvailableTrophies(country: string, competition: string, cupStageReached: string): string[] {
-  const trophies: string[] = ["League Title"];
-  if (country === "England") { trophies.push("FA Cup", "Carabao Cup"); }
-  else if (country === "Spain") { trophies.push("Copa del Rey"); }
-  else if (country === "France") { trophies.push("Coupe de France"); }
-  else if (country === "Italy") { trophies.push("Coppa Italia"); }
-  else if (country === "Germany") { trophies.push("DFB-Pokal"); }
-  if (competition === "Champions League") trophies.push("Champions League");
-  if (competition === "Europa League") trophies.push("Europa League");
-  if (competition === "Conference League") trophies.push("Conference League");
+function calculateTrophies(
+  leaguePosition: number,
+  cupResults: Record<string, string>,
+  europeanCompetition: string,
+  europeanStage: string
+): string[] {
+  const trophies: string[] = [];
+  if (leaguePosition === 1) trophies.push("League Title");
+  Object.entries(cupResults).forEach(([cup, stage]) => {
+    if (stage === "Winner") trophies.push(cup);
+  });
+  if (europeanStage === "Winner" && europeanCompetition && europeanCompetition !== "None") {
+    trophies.push(europeanCompetition);
+  }
   return trophies;
 }
 
@@ -65,13 +69,11 @@ export default function NewSeason({ params }: Props) {
   const [country, setCountry] = useState("");
   const [league, setLeague] = useState("");
   const [position, setPosition] = useState("");
-  const [domesticCup, setDomesticCup] = useState("");
-  const [domesticCupStage, setDomesticCupStage] = useState("");
+  const [cupResults, setCupResults] = useState<Record<string, string>>({});
   const [competition, setCompetition] = useState("");
   const [stage, setStage] = useState("");
   const [topScorerName, setTopScorerName] = useState("");
   const [topScorerGoals, setTopScorerGoals] = useState("");
-  const [selectedTrophies, setSelectedTrophies] = useState<string[]>([]);
   const [hoveredCountry, setHoveredCountry] = useState("");
   const [showLeaguePicker, setShowLeaguePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,10 +81,7 @@ export default function NewSeason({ params }: Props) {
   useEffect(() => {
     async function loadSeason() {
       const { data } = await supabase
-        .from("saves")
-        .select("current_season")
-        .eq("id", id)
-        .single();
+        .from("saves").select("current_season").eq("id", id).single();
       if (data?.current_season) setSeasonYear(data.current_season);
     }
     loadSeason();
@@ -91,31 +90,33 @@ export default function NewSeason({ params }: Props) {
   const countries = Object.keys(leagueData);
   const teamCount = country && league ? leagueData[country][league] : 0;
   const positions = teamCount ? Array.from({ length: teamCount }, (_, i) => i + 1) : [];
-  const availableTrophies = getAvailableTrophies(country, competition, domesticCupStage);
+  const cups = country ? domesticCups[country] || [] : [];
 
   function handleLeagueSelect(selectedCountry: string, selectedLeague: string) {
     setCountry(selectedCountry);
     setLeague(selectedLeague);
     setPosition("");
-    setDomesticCup("");
-    setDomesticCupStage("");
+    setCupResults({});
     setShowLeaguePicker(false);
     setHoveredCountry("");
   }
 
-  function toggleTrophy(trophy: string) {
-    setSelectedTrophies((prev) =>
-      prev.includes(trophy) ? prev.filter((t) => t !== trophy) : [...prev, trophy]
-    );
+  function setCupStage(cup: string, stage: string) {
+    setCupResults((prev) => ({ ...prev, [cup]: stage }));
   }
+
+  const autoTrophies = position
+    ? calculateTrophies(parseInt(position), cupResults, competition, stage)
+    : [];
 
   async function createSeason() {
     if (!seasonYear || !country || !league || !position) {
       alert("Please fill in league and position");
       return;
     }
-    if (!domesticCup || !domesticCupStage) {
-      alert("Please fill in domestic cup details");
+    const missingCup = cups.find((c) => !cupResults[c]);
+    if (missingCup) {
+      alert(`Please select a stage for ${missingCup}`);
       return;
     }
     if (competition && competition !== "None" && !stage) {
@@ -131,13 +132,12 @@ export default function NewSeason({ params }: Props) {
       country,
       league,
       league_position: parseInt(position),
-      domestic_cup: domesticCup,
-      domestic_cup_stage: domesticCupStage,
+      cup_results: JSON.stringify(cupResults),
       european_competition: competition === "None" ? null : competition || null,
       european_stage: competition === "None" ? null : stage || null,
       top_scorer_name: topScorerName || null,
       top_scorer_goals: topScorerGoals ? parseInt(topScorerGoals) : null,
-      trophies: selectedTrophies.length > 0 ? JSON.stringify(selectedTrophies) : null,
+      trophies: autoTrophies.length > 0 ? JSON.stringify(autoTrophies) : null,
     });
 
     if (error) {
@@ -173,7 +173,7 @@ export default function NewSeason({ params }: Props) {
 
         <div className="flex flex-col gap-4">
 
-          {/* League Flyout Picker */}
+          {/* League Flyout */}
           <div>
             <label className="text-sm text-gray-400 mb-1 block">League</label>
             <button
@@ -186,7 +186,6 @@ export default function NewSeason({ params }: Props) {
                 <span className="text-gray-600">Select league</span>
               )}
             </button>
-
             {showLeaguePicker && (
               <div className="mt-2 flex rounded-xl border border-white/10 overflow-hidden">
                 <div className="w-1/2 bg-[#141414] border-r border-white/10">
@@ -238,41 +237,29 @@ export default function NewSeason({ params }: Props) {
             </select>
           </div>
 
-          {/* Domestic Cup */}
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">
-              Domestic Cup <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={domesticCup}
-              onChange={(e) => { setDomesticCup(e.target.value); setDomesticCupStage(""); }}
-              disabled={!country}
-              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors disabled:opacity-40"
-            >
-              <option value="">Select cup</option>
-              {(domesticCups[country] || []).map((c) => (
-                <option key={c} value={c}>{c}</option>
+          {/* Domestic Cups — one per cup */}
+          {cups.length > 0 && (
+            <div className="bg-[#141414] border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+              <label className="text-sm text-gray-400 block">
+                Domestic Cups <span className="text-red-400">*</span>
+              </label>
+              {cups.map((cup) => (
+                <div key={cup}>
+                  <label className="text-xs text-gray-500 mb-1 block">{cup}</label>
+                  <select
+                    value={cupResults[cup] || ""}
+                    onChange={(e) => setCupStage(cup, e.target.value)}
+                    className="w-full bg-[#0a0a0a] border border-white/10 text-white rounded-xl px-4 py-2.5 outline-none focus:border-green-500 transition-colors"
+                  >
+                    <option value="">Select stage</option>
+                    {cupStages.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               ))}
-            </select>
-          </div>
-
-          {/* Domestic Cup Stage */}
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">
-              Cup Stage Reached <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={domesticCupStage}
-              onChange={(e) => setDomesticCupStage(e.target.value)}
-              disabled={!domesticCup}
-              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors disabled:opacity-40"
-            >
-              <option value="">Select stage</option>
-              {cupStages.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
+            </div>
+          )}
 
           {/* European Competition */}
           <div>
@@ -291,7 +278,6 @@ export default function NewSeason({ params }: Props) {
             </select>
           </div>
 
-          {/* European Stage */}
           {competition && competition !== "None" && (
             <div>
               <label className="text-sm text-gray-400 mb-1 block">Stage Reached</label>
@@ -330,25 +316,13 @@ export default function NewSeason({ params }: Props) {
             </div>
           </div>
 
-          {/* Trophies */}
-          {country && (
-            <div className="bg-[#141414] border border-white/10 rounded-xl p-4">
-              <label className="text-sm text-gray-400 mb-3 block">
-                Trophies Won <span className="text-gray-600">(optional)</span>
-              </label>
+          {/* Auto trophies preview */}
+          {autoTrophies.length > 0 && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
+              <p className="text-yellow-400 text-xs font-semibold uppercase tracking-wider mb-2">🏆 Trophies this season</p>
               <div className="flex flex-wrap gap-2">
-                {availableTrophies.map((trophy) => (
-                  <button
-                    key={trophy}
-                    onClick={() => toggleTrophy(trophy)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                      selectedTrophies.includes(trophy)
-                        ? "bg-green-500/20 border-green-500/50 text-green-400"
-                        : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {selectedTrophies.includes(trophy) ? "✓ " : ""}{trophy}
-                  </button>
+                {autoTrophies.map((t) => (
+                  <span key={t} className="bg-yellow-500/20 text-yellow-300 text-xs px-2 py-1 rounded-lg">{t}</span>
                 ))}
               </div>
             </div>
