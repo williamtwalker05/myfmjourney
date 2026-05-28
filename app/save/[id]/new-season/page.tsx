@@ -39,6 +39,24 @@ const leagueData: Record<string, Record<string, number>> = {
   },
 };
 
+const europeanCompetitions = [
+  "None",
+  "Champions League",
+  "Europa League",
+  "Conference League",
+];
+
+const stages = [
+  "Qualifying",
+  "League Phase",
+  "Knockout Phase Play-offs",
+  "Round of 16",
+  "Quarter Final",
+  "Semi Final",
+  "Final",
+  "Winner",
+];
+
 type Props = { params: Promise<{ id: string }> };
 
 export default function NewSeason({ params }: Props) {
@@ -49,29 +67,39 @@ export default function NewSeason({ params }: Props) {
   const [country, setCountry] = useState("");
   const [league, setLeague] = useState("");
   const [position, setPosition] = useState("");
+  const [competition, setCompetition] = useState("");
+  const [stage, setStage] = useState("");
+  const [hoveredCountry, setHoveredCountry] = useState("");
+  const [showLeaguePicker, setShowLeaguePicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const countries = Object.keys(leagueData);
-  const leagues = country ? Object.keys(leagueData[country]) : [];
   const teamCount = country && league ? leagueData[country][league] : 0;
   const positions = teamCount
     ? Array.from({ length: teamCount }, (_, i) => i + 1)
     : [];
 
-  function handleCountryChange(val: string) {
-    setCountry(val);
-    setLeague("");
+  function handleLeagueSelect(selectedCountry: string, selectedLeague: string) {
+    setCountry(selectedCountry);
+    setLeague(selectedLeague);
     setPosition("");
+    setShowLeaguePicker(false);
+    setHoveredCountry("");
   }
 
-  function handleLeagueChange(val: string) {
-    setLeague(val);
-    setPosition("");
+  function handleCompetitionChange(val: string) {
+    setCompetition(val);
+    setStage("");
   }
 
   async function createSeason() {
     if (!seasonYear || !country || !league || !position) {
-      alert("Please fill in all fields");
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    if (competition && competition !== "None" && !stage) {
+      alert("Please select the stage you reached");
       return;
     }
 
@@ -83,6 +111,8 @@ export default function NewSeason({ params }: Props) {
       country,
       league,
       league_position: parseInt(position),
+      european_competition: competition === "None" ? null : competition || null,
+      european_stage: competition === "None" ? null : stage || null,
     });
 
     setLoading(false);
@@ -109,6 +139,7 @@ export default function NewSeason({ params }: Props) {
         <p className="text-gray-400 mb-8">Record your season finish.</p>
 
         <div className="flex flex-col gap-4">
+
           {/* Season Year */}
           <div>
             <label className="text-sm text-gray-400 mb-1 block">Season</label>
@@ -120,35 +151,62 @@ export default function NewSeason({ params }: Props) {
             />
           </div>
 
-          {/* Country */}
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Country</label>
-            <select
-              value={country}
-              onChange={(e) => handleCountryChange(e.target.value)}
-              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
-            >
-              <option value="">Select country</option>
-              {countries.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* League */}
+          {/* League Flyout Picker */}
           <div>
             <label className="text-sm text-gray-400 mb-1 block">League</label>
-            <select
-              value={league}
-              onChange={(e) => handleLeagueChange(e.target.value)}
-              disabled={!country}
-              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors disabled:opacity-40"
+
+            {/* Selected value display */}
+            <button
+              onClick={() => setShowLeaguePicker(!showLeaguePicker)}
+              className="w-full bg-[#141414] border border-white/10 text-left text-white rounded-xl px-4 py-3 transition-colors hover:border-green-500"
             >
-              <option value="">Select league</option>
-              {leagues.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
+              {league ? (
+                <span>{league} <span className="text-green-400 text-sm">({country})</span></span>
+              ) : (
+                <span className="text-gray-600">Select league</span>
+              )}
+            </button>
+
+            {/* Flyout panel */}
+            {showLeaguePicker && (
+              <div className="mt-2 flex rounded-xl border border-white/10 overflow-hidden">
+                {/* Countries */}
+                <div className="w-1/2 bg-[#141414] border-r border-white/10">
+                  {countries.map((c) => (
+                    <button
+                      key={c}
+                      onMouseEnter={() => setHoveredCountry(c)}
+                      onClick={() => setHoveredCountry(c)}
+                      className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${
+                        hoveredCountry === c
+                          ? "bg-white/10 text-white"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {c}
+                      <span className="text-xs">→</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Leagues for hovered country */}
+                <div className="w-1/2 bg-[#1a1a1a]">
+                  {hoveredCountry ? (
+                    Object.keys(leagueData[hoveredCountry]).map((l) => (
+                      <button
+                        key={l}
+                        onClick={() => handleLeagueSelect(hoveredCountry, l)}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                      >
+                        {l}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-gray-600 text-sm px-4 py-3">Hover a country</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Position */}
@@ -166,6 +224,40 @@ export default function NewSeason({ params }: Props) {
               ))}
             </select>
           </div>
+
+          {/* European Competition */}
+          <div>
+            <label className="text-sm text-gray-400 mb-1 block">
+              European Competition <span className="text-gray-600">(optional)</span>
+            </label>
+            <select
+              value={competition}
+              onChange={(e) => handleCompetitionChange(e.target.value)}
+              className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
+            >
+              <option value="">Select competition</option>
+              {europeanCompetitions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Stage Reached */}
+          {competition && competition !== "None" && (
+            <div>
+              <label className="text-sm text-gray-400 mb-1 block">Stage Reached</label>
+              <select
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
+                className="w-full bg-[#141414] border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors"
+              >
+                <option value="">Select stage</option>
+                {stages.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <button
             onClick={createSeason}
